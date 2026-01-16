@@ -1,8 +1,7 @@
 --[[
-    MIDOMAUL // v5.3 DEFINITIVE EDITION
-    - Merged v5.2 (Draggable Button) & v5.3 (Polished Padding/Inputs)
-    - Full Save/Load Config System
-    - Mobile-First Architecture
+    MIDOMAUL // v6.0 DEFINITIVE EDITION
+    - Combined all features: Configs, Draggable Mobile Button, Multi-Select, Color Pickers
+    - Full Mobile Support
 ]]
 
 local TweenService = game:GetService("TweenService")
@@ -10,6 +9,7 @@ local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
@@ -22,7 +22,7 @@ local Theme = {
     Interact    = Color3.fromRGB(40, 40, 48),
     Accent      = Color3.fromRGB(0, 200, 255),
     Text        = Color3.fromRGB(240, 240, 240),
-    SubText     = Color3.fromRGB(160, 160, 170),
+    SubText     = Color3.fromRGB(140, 140, 150),
     Stroke      = Color3.fromRGB(60, 60, 70),
     
     Font        = Enum.Font.GothamMedium,
@@ -120,7 +120,7 @@ function Library:GetConfigs()
 end
 
 function Library:Notify(title, text, duration)
-    local UI = CoreGui:FindFirstChild("MidoMaul_UI")
+    local UI = CoreGui:FindFirstChild("MidoMaul_Main")
     if not UI then return end
     local Holder = UI:FindFirstChild("Notifs") or Utility:Create("Frame", { Name = "Notifs", Parent = UI, BackgroundTransparency = 1, Position = UDim2.new(1, -20, 1, -20), Size = UDim2.new(0, 300, 1, 0), AnchorPoint = Vector2.new(1, 1) })
     if not Holder:FindFirstChild("Layout") then Utility:Create("UIListLayout", {Parent=Holder, VerticalAlignment=Enum.VerticalAlignment.Bottom, Padding=UDim.new(0,5), HorizontalAlignment=Enum.HorizontalAlignment.Right}) end
@@ -145,7 +145,7 @@ function Library:Window(options)
     local ToggleKey = options.ToggleKey or Enum.KeyCode.RightControl
     SafeMakeFolder(Library.ConfigFolder)
     
-    local ScreenGui = Utility:Create("ScreenGui", { Name = "MidoMaul_UI", Parent = CoreGui, ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling })
+    local ScreenGui = Utility:Create("ScreenGui", { Name = "MidoMaul_Main", Parent = CoreGui, ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling })
     
     -- Mobile Open Button (Draggable)
     local OpenBtn = Utility:Create("TextButton", { Name = "OpenBtn", Parent = ScreenGui, BackgroundColor3 = Theme.Main, Size = UDim2.new(0, 50, 0, 50), Position = UDim2.new(0, 20, 0.5, -25), Visible = false, Text = "M", TextColor3 = Theme.Accent, Font = Theme.FontBold, TextSize = 24, AutoButtonColor = false }); Utility:Corner(OpenBtn, UDim.new(1,0)); Utility:Stroke(OpenBtn, Theme.Stroke); Utility:MakeDrag(OpenBtn)
@@ -269,7 +269,6 @@ function Library:Window(options)
             local Frame = Utility:Create("Frame", { Parent = Page, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 36) }); Utility:Corner(Frame); Utility:Stroke(Frame, Theme.Stroke)
             local Lab = Utility:Create("TextLabel", { Parent = Frame, Text = Text, TextColor3 = Theme.Text, Font = Theme.Font, TextSize = 13, Size = UDim2.new(1, -50, 1, 0), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left }); Utility:Padding(Lab, 12)
             local Preview = Utility:Create("TextButton", { Parent = Frame, BackgroundColor3 = Default, Size = UDim2.new(0, 30, 0, 20), Position = UDim2.new(1, -42, 0.5, -10), Text = "" }); Utility:Corner(Preview, UDim.new(0,4)); Utility:Stroke(Preview, Theme.Stroke)
-            
             local Picker = Utility:Create("Frame", { Parent = Frame, BackgroundColor3 = Theme.Main, Size = UDim2.new(1, -24, 0, 80), Position = UDim2.new(0, 12, 0, 36), Visible = false }); Utility:Corner(Picker, UDim.new(0,4))
             local function CreateBox(pos, col, t) 
                 local b = Utility:Create("TextBox", { Parent = Picker, BackgroundColor3 = Theme.Element, Size = UDim2.new(0.3, 0, 0, 25), Position = pos, Text = t, TextColor3 = col, Font = Theme.FontBold, TextSize = 12 }); Utility:Corner(b, UDim.new(0,4)); return b 
@@ -277,13 +276,11 @@ function Library:Window(options)
             local R = CreateBox(UDim2.new(0,0,0.35,0), Color3.fromRGB(255,100,100), "255")
             local G = CreateBox(UDim2.new(0.35,0,0.35,0), Color3.fromRGB(100,255,100), "255")
             local B = CreateBox(UDim2.new(0.7,0,0.35,0), Color3.fromRGB(100,100,255), "255")
-            
             local function Update()
                 local c = Color3.fromRGB(tonumber(R.Text) or 0, tonumber(G.Text) or 0, tonumber(B.Text) or 0)
                 Preview.BackgroundColor3 = c; Library.Flags[Flag] = c; pcall(callback, c)
             end
             R.FocusLost:Connect(Update); G.FocusLost:Connect(Update); B.FocusLost:Connect(Update)
-            
             local Open = false
             Preview.MouseButton1Click:Connect(function() Open = not Open; Picker.Visible = Open; Frame:TweenSize(Open and UDim2.new(1, 0, 0, 120) or UDim2.new(1, 0, 0, 36), "Out", "Quart", 0.3, true) end)
         end
