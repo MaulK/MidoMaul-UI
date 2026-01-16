@@ -1,36 +1,16 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local MidoMaul = require(ReplicatedStorage:WaitForChild("MidoMaul"))
+local MidoMaul = loadstring(game:HttpGet("https://raw.githubusercontent.com/MaulK/MidoMaul-UI/refs/heads/main/src/MidoMaul.lua)"))()
 
---// Window Creation
+-- Create the Window
 local Window = MidoMaul:Window({
-    Title = "MidoMaul Demo"
+    Title = "Cyber Interface"
 })
 
---// Tabs
-local CombatTab = Window:Tab("Combat")
-local VisualsTab = Window:Tab("Visuals")
-local SettingsTab = Window:Tab("Settings")
+local Tab = Window:Tab("Main")
 
---// Combat Section
-CombatTab:Section("Aimbot")
-
-CombatTab:Toggle("Enabled", false, function(state)
-    print("Aimbot is now:", state)
+Tab:Button("Initiate Protocol", function()
+    print("Protocol started")
 end)
 
-CombatTab:Slider("FOV Radius", 0, 360, 90, function(value)
-    -- Real-time update logic here
+Tab:Slider("Intensity", 0, 100, 50, function(value)
+    print(value)
 end)
-
-CombatTab:Button("Silent Aim (Beta)", function()
-    print("Silent Aim Triggered")
-end)
-
---// Visuals Section
-VisualsTab:Section("ESP")
-
-VisualsTab:Toggle("Box ESP", true, function(s) end)
-VisualsTab:Toggle("Tracers", false, function(s) end)
-VisualsTab:Slider("Render Distance", 100, 5000, 1500, function(v) end)
-
-print("MidoMaul Loaded Successfully")
