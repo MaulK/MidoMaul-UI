@@ -9,7 +9,7 @@
 
 **Futuristic. Fluid. Mobile-First.**
 <br/>
-A next-generation material control surface for Roblox developers.
+A next-generation material control surface.
 
 </div>
 
@@ -20,20 +20,17 @@ MidoMaul is built on the idea that power should feel effortless. It abandons rig
 - **Mobile-First Architecture:** Auto-detects device type and scales UI (1.1x on mobile) for perfect touch targets.
 - **Magnetic Haptics:** Buttons pulse and ripple; sliders glow with intensity.
 - **Holo-Glow Depth:** Uses layered transparency and shadow sprites instead of borders.
-- **TweenService Integration:** deeply integrated smooth motion for every interaction.
-- **Single Module:** No complex loader scripts. One module, zero dependencies.
+- **TweenService Integration:** Deeply integrated smooth motion for every interaction.
+- **Cloud Loading:** Always load the latest version directly from source.
 
-## 📦 Installation
+## 🚀 Usage (Loadstring)
 
-1. Download `src/MidoMaul.lua`.
-2. Drag it into `ReplicatedStorage` (or your preferred storage).
-3. Require it in a `LocalScript`.
-
-## 🚀 Usage
+You can load MidoMaul directly into your script using `game:HttpGet`.
 
 ```lua
-local MidoMaul = require(game.ReplicatedStorage.MidoMaul)
+local MidoMaul = loadstring(game:HttpGet("[https://raw.githubusercontent.com/MaulK/MidoMaul-UI/refs/heads/main/src/MidoMaul.lua](https://raw.githubusercontent.com/MaulK/MidoMaul-UI/refs/heads/main/src/MidoMaul.lua)"))()
 
+-- Create the Window
 local Window = MidoMaul:Window({
     Title = "Cyber Interface"
 })
