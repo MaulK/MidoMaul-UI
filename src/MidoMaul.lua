@@ -1,8 +1,8 @@
 --[[
-    MIDOMAUL // v5.1 SHOW/HIDE UPDATE
-    - Added: Mobile "Open" Button (appears when UI is hidden)
-    - Added: Top-right Close (X) Button
-    - Added: Library:Toggle() function
+    MIDOMAUL // v5.2 PC/MOBILE TOGGLE UPDATE
+    - Added: Draggable "M" Button for PC & Mobile
+    - Updated: Dragging logic is now a reusable utility
+    - Fixed: Button visibility sync with Keybinds
 ]]
 
 local TweenService = game:GetService("TweenService")
@@ -64,6 +64,29 @@ end
 
 function Utility:Tween(obj, props, time)
     TweenService:Create(obj, TweenInfo.new(time or 0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), props):Play()
+end
+
+-- New Reusable Drag Function
+function Utility:MakeDrag(frame)
+    local Dragging, DragInput, DragStart, StartPos
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            Dragging = true
+            DragStart = input.Position
+            StartPos = frame.Position
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if Dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - DragStart
+            frame.Position = UDim2.new(StartPos.X.Scale, StartPos.X.Offset + delta.X, StartPos.Y.Scale, StartPos.Y.Offset + delta.Y)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            Dragging = false
+        end
+    end)
 end
 
 --// ⚙️ CONFIG ENGINE
@@ -140,13 +163,17 @@ function Library:Window(options)
         Name = "MidoMaul_Ultimate", Parent = CoreGui, ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     })
     
-    --// MOBILE OPEN BUTTON (Small Icon)
+    --// TOGGLE BUTTON (Draggable for PC/Mobile)
     local OpenBtn = Utility:Create("TextButton", {
         Name = "OpenButton", Parent = ScreenGui, BackgroundColor3 = Theme.Main,
-        Size = UDim2.new(0, 50, 0, 50), Position = UDim2.new(0, 10, 0.4, 0), Visible = false,
-        Text = "M", TextColor3 = Theme.Accent, Font = Theme.FontBold, TextSize = 24
+        Size = UDim2.new(0, 50, 0, 50), Position = UDim2.new(0, 20, 0.5, -25), Visible = false,
+        Text = "M", TextColor3 = Theme.Accent, Font = Theme.FontBold, TextSize = 24,
+        AutoButtonColor = false
     })
     Utility:Corner(OpenBtn, UDim.new(1,0)); Utility:Stroke(OpenBtn, Theme.Stroke)
+    
+    -- Make the button draggable
+    Utility:MakeDrag(OpenBtn)
     
     --// MAIN FRAME
     local Main = Utility:Create("Frame", {
@@ -155,24 +182,17 @@ function Library:Window(options)
     })
     Utility:Corner(Main, UDim.new(0, 8)); Utility:Stroke(Main, Theme.Stroke)
     
-    -- Close Logic
+    -- Make Main draggable
+    Utility:MakeDrag(Main)
+    
+    -- Toggle Logic
     local function ToggleUI()
         Main.Visible = not Main.Visible
         OpenBtn.Visible = not Main.Visible
     end
     
-    Library.Toggle = ToggleUI -- Export for scripts
+    Library.Toggle = ToggleUI
     OpenBtn.MouseButton1Click:Connect(ToggleUI)
-    
-    -- Drag Logic
-    local Dragging, DragInput, StartPos
-    Main.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then Dragging = true; StartPos = input.Position end end)
-    UserInputService.InputChanged:Connect(function(input) if Dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - StartPos
-        Main.Position = UDim2.new(Main.Position.X.Scale, Main.Position.X.Offset + delta.X, Main.Position.Y.Scale, Main.Position.Y.Offset + delta.Y)
-        StartPos = input.Position
-    end end)
-    UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then Dragging = false end end)
     
     -- Toggle Keybind
     UserInputService.InputBegan:Connect(function(i, gp) if not gp and i.KeyCode == ToggleKey then ToggleUI() end end)
