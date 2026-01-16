@@ -28,19 +28,189 @@ MidoMaul is built on the idea that power should feel effortless. It abandons rig
 You can load MidoMaul directly into your script using `game:HttpGet`.
 
 ```lua
-local MidoMaul = loadstring(game:HttpGet("[https://raw.githubusercontent.com/MaulK/MidoMaul-UI/refs/heads/main/src/MidoMaul.lua](https://raw.githubusercontent.com/MaulK/MidoMaul-UI/refs/heads/main/src/MidoMaul.lua)"))()
+--[[
+    MIDOMAUL v5.2 // ULTIMATE SHOWCASE
+    ----------------------------------
+    > Draggable "M" Toggle Button
+    > Save/Load Config System
+    > Multi-Select Dropdowns
+    > Color Pickers & Progress Bars
+]]
 
--- Create the Window
-local Window = MidoMaul:Window({
-    Title = "Cyber Interface"
+--// 1. LOAD THE LIBRARY
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/MaulK/MidoMaul-UI/refs/heads/main/src/MidoMaul.lua"))()
+
+--// 2. CREATE WINDOW
+local Window = Library:Window({
+    Title = "MidoMaul v5.2 Hub",
+    ToggleKey = Enum.KeyCode.RightControl
 })
 
-local Tab = Window:Tab("Main")
+--// 3. CREATE TABS
+local CombatTab = Window:Tab("Combat")
+local VisualsTab = Window:Tab("Visuals")
+local PlayerTab = Window:Tab("Player")
+local SettingsTab = Window:Tab("Configs")
 
-Tab:Button("Initiate Protocol", function()
-    print("Protocol started")
+--// 4. LOGIC VARIABLES
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+local State = {
+    Aimbot = false,
+    AimPart = "Head",
+    ESP = false,
+    ESPColor = Color3.fromRGB(255, 0, 0),
+    WalkSpeed = 16,
+    JumpPower = 50,
+    FlySpeed = 50
+}
+
+--// ==============================
+--// TAB: COMBAT
+--// ==============================
+
+CombatTab:Section("Aimbot Settings")
+
+CombatTab:Toggle({
+    Name = "Enable Aimbot",
+    Flag = "Aim_Enabled",
+    Default = false
+}, function(val)
+    State.Aimbot = val
+    if val then Library:Notify("Combat", "Aimbot Active", 2) end
 end)
 
-Tab:Slider("Intensity", 0, 100, 50, function(value)
-    print(value)
+CombatTab:Dropdown({
+    Name = "Target Part",
+    Flag = "Aim_Part",
+    List = {"Head", "Torso", "HumanoidRootPart"},
+    Multi = false, -- Single Select
+    Default = "Head"
+}, function(val)
+    State.AimPart = val
+end)
+
+CombatTab:Keybind({
+    Name = "Aim Lock Key",
+    Flag = "Aim_Bind",
+    Default = "Q"
+}, function()
+    if State.Aimbot then
+        print("[Simulated] Locked on: " .. State.AimPart)
+    end
+end)
+
+CombatTab:Section("Auto Farm")
+
+CombatTab:ButtonGroup({
+    Names = {"Start Farm", "Stop Farm", "Collect"},
+    Callback = function(action)
+        print("AutoFarm Action: " .. action)
+    end
+})
+
+--// ==============================
+--// TAB: VISUALS
+--// ==============================
+
+VisualsTab:Section("ESP Configuration")
+
+VisualsTab:Toggle({
+    Name = "Master Switch",
+    Flag = "ESP_Master",
+    Default = false
+}, function(val)
+    State.ESP = val
+end)
+
+VisualsTab:ColorPicker({
+    Name = "ESP Color",
+    Flag = "ESP_Col",
+    Default = Color3.fromRGB(0, 255, 150)
+}, function(col)
+    State.ESPColor = col
+end)
+
+-- [MULTI-SELECT DROPDOWN]
+VisualsTab:Dropdown({
+    Name = "Show Elements",
+    Flag = "ESP_Elements",
+    List = {"Tracers", "Boxes", "Names", "Health", "Distance"},
+    Multi = true, -- Select multiple options
+    Default = {"Boxes", "Names"}
+}, function(selected)
+    -- 'selected' is a table: { ["Boxes"] = true, ["Tracers"] = false }
+    for item, enabled in pairs(selected) do
+        if enabled then print("ESP Showing: " .. item) end
+    end
+end)
+
+VisualsTab:TextField({
+    Name = "Custom Watermark",
+    Flag = "ESP_Text",
+    Placeholder = "maul.cc"
+}, function(txt)
+    print("Watermark set to: " .. txt)
+end)
+
+--// ==============================
+--// TAB: PLAYER
+--// ==============================
+
+PlayerTab:Section("Character Mods")
+
+PlayerTab:Slider({
+    Name = "WalkSpeed",
+    Flag = "Plr_Speed",
+    Min = 16, Max = 500, Default = 16
+}, function(val)
+    State.WalkSpeed = val
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = val
+    end
+end)
+
+PlayerTab:Slider({
+    Name = "JumpPower",
+    Flag = "Plr_Jump",
+    Min = 50, Max = 500, Default = 50
+}, function(val)
+    State.JumpPower = val
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.UseJumpPower = true
+        LocalPlayer.Character.Humanoid.JumpPower = val
+    end
+end)
+
+PlayerTab:Section("Status")
+
+local HP_Bar = PlayerTab:ProgressBar({
+    Name = "Health",
+    Min = 0, Max = 100, Default = 100
+})
+
+-- Update Health Bar Logic
+RunService.RenderStepped:Connect(function()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        HP_Bar:Set(LocalPlayer.Character.Humanoid.Health)
+    end
+end)
+
+--// ==============================
+--// TAB: SETTINGS (Config System)
+--// ==============================
+
+SettingsTab:Label("Save your settings to load them later.")
+
+-- This ONE line adds the entire Save/Load/List UI
+SettingsTab:ConfigSystem()
+
+SettingsTab:Button("Unload Script", function()
+    game.CoreGui:FindFirstChild("MidoMaul_Ultimate"):Destroy()
+    game.CoreGui:FindFirstChild("MidoMaul_Ultimate"):Destroy() -- Cleanup Open Button
+end)
+
+Library:Notify("Success", "MidoMaul Loaded! Press RightCtrl to toggle.", 5)t(value)
 end)
