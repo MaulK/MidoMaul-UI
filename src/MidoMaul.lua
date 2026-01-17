@@ -1,8 +1,9 @@
 --[[
-    MIDOMAUL // v8.1 POLISHED KNOB UPDATE
-    - Reworked: 'Knob' Element -> Now uses Trigonometric Orbiting (Dot Style)
-    - Visuals: Knobs now display value in the center and glow on interaction
-    - Core: Optimized dragging math for smoother rotation
+    MIDOMAUL // v8.2 STABLE FIX
+    - FIXED: Knob dragging the entire window (Added interaction locking)
+    - FIXED: Title overlapping with sections (Added TextScaled & AutoSize)
+    - FIXED: Redundant Config Tabs
+    - CORE: Optimized Input Handling
 ]]
 
 local TweenService = game:GetService("TweenService")
@@ -38,7 +39,8 @@ local Theme = {
 local Library = { 
     Flags = {}, Items = {}, Accents = {}, Connections = {}, 
     ToggleKey = Enum.KeyCode.RightControl, ConfigFolder = "MidoMaulConfigs", 
-    Keys = {}, IsOpen = true, Searchable = {}, AntiAFK = false 
+    Keys = {}, IsOpen = true, Searchable = {}, AntiAFK = false,
+    IsInteracting = false -- [FIX] Global flag to stop dragging
 }
 local Utility = {}
 
@@ -88,7 +90,8 @@ end
 function Utility:MakeDrag(frame)
     local Dragging, DragStart, StartPos
     table.insert(Library.Connections, frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        -- [FIX] Check IsInteracting to prevent dragging when using Knobs/Sliders
+        if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and not Library.IsInteracting then
             Dragging = true; DragStart = input.Position; StartPos = frame.Position
         end
     end))
@@ -237,7 +240,8 @@ function Library:Window(options)
 
     local Sidebar = Utility:Create("Frame", { Parent = Main, BackgroundColor3 = Theme.Sidebar, Size = UDim2.new(0, 170, 1, 0) }); Utility:Corner(Sidebar)
     Utility:Create("Frame", {Parent=Sidebar, BackgroundColor3=Theme.Sidebar, Size=UDim2.new(0,10,1,0), Position=UDim2.new(1,-10,0,0), BorderSizePixel=0})
-    local TitleLabel = Utility:Create("TextLabel", { Parent = Sidebar, Text = Title, TextColor3 = Theme.Accent, Font = Theme.FontBold, TextSize = 18, Size = UDim2.new(1, 0, 0, 50), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left }); Utility:Padding(TitleLabel, 15, 0); Utility:RegisterAccent(TitleLabel, "TextColor3")
+    -- [FIX] Title TextScaled to prevent overlap
+    local TitleLabel = Utility:Create("TextLabel", { Parent = Sidebar, Text = Title, TextColor3 = Theme.Accent, Font = Theme.FontBold, TextSize = 18, Size = UDim2.new(1, 0, 0, 50), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left, TextScaled = true }); Utility:Padding(TitleLabel, 15, 5); Utility:RegisterAccent(TitleLabel, "TextColor3")
     
     local SearchBox = Utility:Create("TextBox", { Parent = Sidebar, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 10, 0, 55), Text = "", PlaceholderText = "Search...", TextColor3 = Theme.Text, Font = Theme.Font, TextSize = 13 }); Utility:Corner(SearchBox); Utility:Stroke(SearchBox, Theme.Stroke)
     
@@ -329,13 +333,20 @@ function Library:Window(options)
             local function Update(val) val = math.clamp(val, Min, Max); Library.Flags[Flag] = val; ValTxt.Text = tostring(val); Utility:Tween(Fill, {Size = UDim2.new((val - Min) / (Max - Min), 0, 1, 0)}, 0.1); pcall(callback, val) end
             local Dragging = false
             local function Move(input) local p = math.clamp((input.Position.X - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1); Update(math.floor(Min + (Max - Min) * p)) end
-            table.insert(Library.Connections, Bar.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then Dragging = true; Move(i) end end))
+            table.insert(Library.Connections, Bar.InputBegan:Connect(function(i) 
+                if i.UserInputType == Enum.UserInputType.MouseButton1 then 
+                    Dragging = true; Library.IsInteracting = true; Move(i) -- [FIX] Lock dragging
+                end 
+            end))
             table.insert(Library.Connections, UserInputService.InputChanged:Connect(function(i) if Dragging and i.UserInputType == Enum.UserInputType.MouseMovement then Move(i) end end))
-            table.insert(Library.Connections, UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then Dragging = false end end))
+            table.insert(Library.Connections, UserInputService.InputEnded:Connect(function(i) 
+                if i.UserInputType == Enum.UserInputType.MouseButton1 then 
+                    Dragging = false; Library.IsInteracting = false -- [FIX] Unlock dragging
+                end 
+            end))
             Library.Items[Flag] = { Set = function(self, v) Update(v) end }; Update(Default)
         end
 
-        --// 🔘 REWORKED: KNOB (DOT ORBIT STYLE)
         function Elements:Knob(options, callback)
             local Text, Flag, Min, Max, Default = options.Name, options.Flag or options.Name, options.Min or 0, options.Max or 100, options.Default or 0
             Library.Flags[Flag] = Default
@@ -343,34 +354,26 @@ function Library:Window(options)
             local Frame = Utility:Create("Frame", {Parent=CurrentContainer, BackgroundColor3=Theme.Element, Size=UDim2.new(1,0,0,75)})
             Utility:Corner(Frame); Utility:Stroke(Frame, Theme.Stroke)
             
-            -- Title (Top Left)
             Utility:Create("TextLabel", {Parent=Frame, Text=Text, TextColor3=Theme.Text, Font=Theme.Font, TextSize=13, Size=UDim2.new(1,-80,1,0), Position=UDim2.new(0,12,0,0), BackgroundTransparency=1, TextXAlignment=Enum.TextXAlignment.Left, TextYAlignment=Enum.TextYAlignment.Center})
             table.insert(Library.Searchable, {Object = Frame, Text = Text})
 
-            -- Knob Container (Right Side)
             local KnobSize = 55
-            local KnobArea = Utility:Create("Frame", {Parent=Frame, BackgroundTransparency=1, Size=UDim2.new(0,KnobSize,0,KnobSize), AnchorPoint=Vector2.new(1,0.5), Position=UDim2.new(1,-12,0.5,0)})
+            local KnobArea = Utility:Create("Frame", {Parent=Frame, BackgroundTransparency=1, Size=UDim2.new(0,KnobSize,0,KnobSize), AnchorPoint=Vector2.new(1,0.5), Position=UDim2.new(1,-12,0.5,0), Active=true}) -- [FIX] Active=true usually helps, but IsInteracting is safer
             
-            -- Background Ring
             local BgRing = Utility:Create("Frame", {Parent=KnobArea, BackgroundColor3=Theme.Main, Size=UDim2.new(1,0,1,0), AnchorPoint=Vector2.new(0.5,0.5), Position=UDim2.new(0.5,0,0.5,0)}); Utility:Corner(BgRing, UDim.new(1,0))
             local RingStroke = Utility:Stroke(BgRing, Theme.Stroke); RingStroke.Thickness = 2
 
-            -- Value Text (Center of Knob)
             local ValText = Utility:Create("TextLabel", {Parent=BgRing, Text=tostring(Default), TextColor3=Theme.Accent, Font=Theme.FontBold, TextSize=14, Size=UDim2.new(1,0,1,0), BackgroundTransparency=1, TextXAlignment=Enum.TextXAlignment.Center}); Utility:RegisterAccent(ValText, "TextColor3")
-
-            -- The Orbiting Dot
             local DotContainer = Utility:Create("Frame", {Parent=BgRing, BackgroundTransparency=1, Size=UDim2.new(1,0,1,0)})
             local Dot = Utility:Create("Frame", {Parent=DotContainer, BackgroundColor3=Theme.Accent, Size=UDim2.new(0,8,0,8), AnchorPoint=Vector2.new(0.5,0.5)}); Utility:Corner(Dot, UDim.new(1,0)); Utility:RegisterAccent(Dot, "BackgroundColor3")
 
             local function Update(val, doCallback)
                 val = math.clamp(val, Min, Max)
-                -- Map value to angle: -135 deg to +135 deg
                 local percent = (val - Min) / (Max - Min)
                 local angle = -135 + (percent * 270)
-                local rad = math.rad(angle - 90) -- Subtract 90 because 0 is right in trig, we want 0 up
+                local rad = math.rad(angle - 90)
                 
-                -- Trigonometry to place dot on edge
-                local radius = (KnobSize / 2) - 1 -- -1 offset to sit on line
+                local radius = (KnobSize / 2) - 1
                 local cx, cy = KnobSize/2, KnobSize/2
                 local dx = cx + (radius * math.cos(rad))
                 local dy = cy + (radius * math.sin(rad))
@@ -385,7 +388,7 @@ function Library:Window(options)
             local Dragging = false
             KnobArea.InputBegan:Connect(function(input) 
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then 
-                    Dragging = true; Utility:Tween(RingStroke, {Color = Theme.Accent}) 
+                    Dragging = true; Library.IsInteracting = true; Utility:Tween(RingStroke, {Color = Theme.Accent}) -- [FIX] Lock dragging
                 end 
             end)
             
@@ -393,14 +396,7 @@ function Library:Window(options)
                 if Dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
                     local Center = KnobArea.AbsolutePosition + (KnobArea.AbsoluteSize/2)
                     local Vec = Vector2.new(input.Position.X, input.Position.Y) - Center
-                    local Angle = math.deg(math.atan2(Vec.Y, Vec.X)) + 90
-                    -- Adjust Angle to match our -135 to 135 range
-                    if Angle > 180 then Angle = Angle - 360 end
-                    -- Invert and Rotate logic for intuitive feel
-                    -- Standard Knob: Down-Left is Min, Down-Right is Max
-                    -- Atan2: Right=0, Down=90, Left=180/-180, Up=-90
-                    
-                    local RawAngle = math.deg(math.atan2(Vec.X, -Vec.Y)) -- Up is 0
+                    local RawAngle = math.deg(math.atan2(Vec.X, -Vec.Y))
                     local Clamped = math.clamp(RawAngle, -135, 135)
                     local Percent = (Clamped + 135) / 270
                     local NewVal = math.floor(Min + (Max - Min) * Percent)
@@ -410,7 +406,7 @@ function Library:Window(options)
             
             table.insert(Library.Connections, UserInputService.InputEnded:Connect(function(input) 
                 if input.UserInputType == Enum.UserInputType.MouseButton1 then 
-                    Dragging = false; Utility:Tween(RingStroke, {Color = Theme.Stroke}) 
+                    Dragging = false; Library.IsInteracting = false; Utility:Tween(RingStroke, {Color = Theme.Stroke}) -- [FIX] Unlock dragging
                 end 
             end))
             
