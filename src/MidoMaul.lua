@@ -1,8 +1,8 @@
 --[[
-    MIDOMAUL // v8.0 "INNOVATION" UPDATE
-    - Added: 'Knob' Element (Radial Dial Slider)
-    - Added: 'ChipSet' Element (Tag/Whitelist System)
-    - Core: Preserved v7.5 Stability & Single Column Architecture
+    MIDOMAUL // v8.1 POLISHED KNOB UPDATE
+    - Reworked: 'Knob' Element -> Now uses Trigonometric Orbiting (Dot Style)
+    - Visuals: Knobs now display value in the center and glow on interaction
+    - Core: Optimized dragging math for smoother rotation
 ]]
 
 local TweenService = game:GetService("TweenService")
@@ -45,6 +45,7 @@ local Utility = {}
 local function SafeWrite(file, data) if writefile then writefile(file, data) end end
 local function SafeRead(file) if readfile and isfile and isfile(file) then return readfile(file) end return nil end
 local function SafeMakeFolder(folder) if makefolder and not isfolder(folder) then makefolder(folder) end end
+local function SafeList(folder) if listfiles and isfolder and isfolder(folder) then return listfiles(folder) end return {} end
 
 function Utility:Create(class, props)
     local obj = Instance.new(class)
@@ -85,7 +86,7 @@ function Utility:AnimateHover(btn, originalColor)
 end
 
 function Utility:MakeDrag(frame)
-    local Dragging, DragInput, DragStart, StartPos
+    local Dragging, DragStart, StartPos
     table.insert(Library.Connections, frame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             Dragging = true; DragStart = input.Position; StartPos = frame.Position
@@ -125,7 +126,8 @@ function Library:SetWatermark(text)
         
         table.insert(Library.Connections, RunService.RenderStepped:Connect(function(dt)
             local fps = math.floor(1/dt)
-            local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+            local ping = 0
+            pcall(function() ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) end)
             local time = os.date("%H:%M:%S")
             Label.Text = string.format("%s | FPS: %d | Ping: %dms | %s", text, fps, ping, time)
         end))
@@ -178,13 +180,11 @@ end
 function Library:Notify(title, text, duration)
     local UI = CoreGui:FindFirstChild("MidoMaul_HUD")
     if not UI then return end
-    
     local Holder = UI:FindFirstChild("Notifs") 
     if not Holder then
         Holder = Utility:Create("Frame", { Name = "Notifs", Parent = UI, BackgroundTransparency = 1, Position = UDim2.new(1, -20, 1, -20), Size = UDim2.new(0, 300, 1, 0), AnchorPoint = Vector2.new(1, 1) })
         Utility:Create("UIListLayout", {Name="Layout", Parent=Holder, VerticalAlignment=Enum.VerticalAlignment.Bottom, Padding=UDim.new(0,5), HorizontalAlignment=Enum.HorizontalAlignment.Right})
     end
-    
     local Toast = Utility:Create("Frame", {Parent=Holder, BackgroundColor3=Theme.Sidebar, Size=UDim2.new(1,0,0,0), AutomaticSize=Enum.AutomaticSize.Y, BackgroundTransparency=1})
     Utility:Corner(Toast); Utility:Stroke(Toast, Theme.Stroke); Utility:Padding(Toast, 12, 10)
     local Bar = Utility:Create("Frame", {Parent=Toast, Size=UDim2.new(0,3,1,0), Position=UDim2.new(0,-12,0,0), BorderSizePixel=0}); Utility:RegisterAccent(Bar, "BackgroundColor3")
@@ -193,17 +193,11 @@ function Library:Notify(title, text, duration)
     Utility:Create("TextLabel", {Parent=Toast, Text=text, TextColor3=Theme.SubText, Font=Theme.Font, TextSize=12, BackgroundTransparency=1, Size=UDim2.new(1,0,0,20), Position=UDim2.new(0,0,0,20), TextXAlignment=Enum.TextXAlignment.Left, TextTransparency=1})
     
     Utility:Tween(Toast, {BackgroundTransparency=0}, 0.3)
-    for _, v in pairs(Toast:GetChildren()) do 
-        if v:IsA("TextLabel") then Utility:Tween(v, {TextTransparency=0}, 0.3) end 
-    end
-    
+    for _, v in pairs(Toast:GetChildren()) do if v:IsA("TextLabel") then Utility:Tween(v, {TextTransparency=0}, 0.3) end end
     task.delay(duration or 3, function()
         Utility:Tween(Toast, {BackgroundTransparency=1}, 0.3)
-        for _, v in pairs(Toast:GetChildren()) do 
-            if v:IsA("TextLabel") then Utility:Tween(v, {TextTransparency=1}, 0.3) end 
-        end
-        task.wait(0.3)
-        Toast:Destroy()
+        for _, v in pairs(Toast:GetChildren()) do if v:IsA("TextLabel") then Utility:Tween(v, {TextTransparency=1}, 0.3) end end
+        task.wait(0.3); Toast:Destroy()
     end)
 end
 
@@ -341,71 +335,89 @@ function Library:Window(options)
             Library.Items[Flag] = { Set = function(self, v) Update(v) end }; Update(Default)
         end
 
-        --// 🔘 NEW: RADIAL KNOB 
+        --// 🔘 REWORKED: KNOB (DOT ORBIT STYLE)
         function Elements:Knob(options, callback)
             local Text, Flag, Min, Max, Default = options.Name, options.Flag or options.Name, options.Min or 0, options.Max or 100, options.Default or 0
             Library.Flags[Flag] = Default
 
-            local Frame = Utility:Create("Frame", {Parent=CurrentContainer, BackgroundColor3=Theme.Element, Size=UDim2.new(1,0,0,70)})
+            local Frame = Utility:Create("Frame", {Parent=CurrentContainer, BackgroundColor3=Theme.Element, Size=UDim2.new(1,0,0,75)})
             Utility:Corner(Frame); Utility:Stroke(Frame, Theme.Stroke)
             
-            Utility:Create("TextLabel", {Parent=Frame, Text=Text, TextColor3=Theme.Text, Font=Theme.Font, TextSize=13, Size=UDim2.new(1,-80,1,0), Position=UDim2.new(0,12,0,0), BackgroundTransparency=1, TextXAlignment=Enum.TextXAlignment.Left})
-            local ValText = Utility:Create("TextLabel", {Parent=Frame, Text=tostring(Default), TextColor3=Theme.Accent, Font=Theme.FontBold, TextSize=18, Size=UDim2.new(0,60,1,0), Position=UDim2.new(1,-70,0,0), BackgroundTransparency=1, TextXAlignment=Enum.TextXAlignment.Center})
-            Utility:RegisterAccent(ValText, "TextColor3")
-
-            local Circle = Utility:Create("ImageButton", {Parent=Frame, BackgroundColor3=Theme.Main, Size=UDim2.new(0,50,0,50), AnchorPoint=Vector2.new(0.5,0.5), Position=UDim2.new(1,-100,0.5,0), AutoButtonColor=false})
-            Utility:Corner(Circle, UDim.new(1,0)); Utility:Stroke(Circle, Theme.Stroke)
-            
-            local Indicator = Utility:Create("Frame", {Parent=Circle, BackgroundColor3=Theme.Accent, Size=UDim2.new(0,4,0,16), AnchorPoint=Vector2.new(0.5,1), Position=UDim2.new(0.5,0,0.5,0), Rotation=0})
-            Utility:RegisterAccent(Indicator, "BackgroundColor3")
+            -- Title (Top Left)
+            Utility:Create("TextLabel", {Parent=Frame, Text=Text, TextColor3=Theme.Text, Font=Theme.Font, TextSize=13, Size=UDim2.new(1,-80,1,0), Position=UDim2.new(0,12,0,0), BackgroundTransparency=1, TextXAlignment=Enum.TextXAlignment.Left, TextYAlignment=Enum.TextYAlignment.Center})
             table.insert(Library.Searchable, {Object = Frame, Text = Text})
+
+            -- Knob Container (Right Side)
+            local KnobSize = 55
+            local KnobArea = Utility:Create("Frame", {Parent=Frame, BackgroundTransparency=1, Size=UDim2.new(0,KnobSize,0,KnobSize), AnchorPoint=Vector2.new(1,0.5), Position=UDim2.new(1,-12,0.5,0)})
+            
+            -- Background Ring
+            local BgRing = Utility:Create("Frame", {Parent=KnobArea, BackgroundColor3=Theme.Main, Size=UDim2.new(1,0,1,0), AnchorPoint=Vector2.new(0.5,0.5), Position=UDim2.new(0.5,0,0.5,0)}); Utility:Corner(BgRing, UDim.new(1,0))
+            local RingStroke = Utility:Stroke(BgRing, Theme.Stroke); RingStroke.Thickness = 2
+
+            -- Value Text (Center of Knob)
+            local ValText = Utility:Create("TextLabel", {Parent=BgRing, Text=tostring(Default), TextColor3=Theme.Accent, Font=Theme.FontBold, TextSize=14, Size=UDim2.new(1,0,1,0), BackgroundTransparency=1, TextXAlignment=Enum.TextXAlignment.Center}); Utility:RegisterAccent(ValText, "TextColor3")
+
+            -- The Orbiting Dot
+            local DotContainer = Utility:Create("Frame", {Parent=BgRing, BackgroundTransparency=1, Size=UDim2.new(1,0,1,0)})
+            local Dot = Utility:Create("Frame", {Parent=DotContainer, BackgroundColor3=Theme.Accent, Size=UDim2.new(0,8,0,8), AnchorPoint=Vector2.new(0.5,0.5)}); Utility:Corner(Dot, UDim.new(1,0)); Utility:RegisterAccent(Dot, "BackgroundColor3")
 
             local function Update(val, doCallback)
                 val = math.clamp(val, Min, Max)
+                -- Map value to angle: -135 deg to +135 deg
                 local percent = (val - Min) / (Max - Min)
-                -- Map 0-1 to -135deg to +135deg
-                local rot = (percent * 270) - 135
+                local angle = -135 + (percent * 270)
+                local rad = math.rad(angle - 90) -- Subtract 90 because 0 is right in trig, we want 0 up
                 
+                -- Trigonometry to place dot on edge
+                local radius = (KnobSize / 2) - 1 -- -1 offset to sit on line
+                local cx, cy = KnobSize/2, KnobSize/2
+                local dx = cx + (radius * math.cos(rad))
+                local dy = cy + (radius * math.sin(rad))
+                
+                Utility:Tween(Dot, {Position = UDim2.new(0, dx, 0, dy)}, 0.08)
                 ValText.Text = tostring(val)
                 Library.Flags[Flag] = val
-                Utility:Tween(Indicator, {Rotation = rot}, 0.1)
+                
                 if doCallback then pcall(callback, val) end
             end
 
             local Dragging = false
-            Circle.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then Dragging = true end end)
+            KnobArea.InputBegan:Connect(function(input) 
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then 
+                    Dragging = true; Utility:Tween(RingStroke, {Color = Theme.Accent}) 
+                end 
+            end)
+            
             table.insert(Library.Connections, UserInputService.InputChanged:Connect(function(input)
                 if Dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-                    local Center = Circle.AbsolutePosition + (Circle.AbsoluteSize/2)
+                    local Center = KnobArea.AbsolutePosition + (KnobArea.AbsoluteSize/2)
                     local Vec = Vector2.new(input.Position.X, input.Position.Y) - Center
-                    -- Atan2 gives angle from center. We rotate to make "down" the gap.
-                    local Angle = math.deg(math.atan2(Vec.Y, Vec.X)) + 90 
-                    if Angle < 0 then Angle = Angle + 360 end
-                    -- Angle is now 0 (Up) to 180 (Down) to 360 (Up)
-                    -- We map this to our Knob range. 
-                    -- Let's stick to simple visual projection: 
-                    -- We just want the rotation to track the mouse relative to center.
+                    local Angle = math.deg(math.atan2(Vec.Y, Vec.X)) + 90
+                    -- Adjust Angle to match our -135 to 135 range
+                    if Angle > 180 then Angle = Angle - 360 end
+                    -- Invert and Rotate logic for intuitive feel
+                    -- Standard Knob: Down-Left is Min, Down-Right is Max
+                    -- Atan2: Right=0, Down=90, Left=180/-180, Up=-90
                     
-                    -- Improved Logic: Clamp the rotation so it doesn't jump from 0 to 100 instantly at the bottom
-                    local VisualAngle = math.clamp(Angle, 45, 315) -- Clip bottom part
-                    -- Map 45..315 (270 deg range) to 0..1
-                    -- Actually, standard math is: Left (-135) to Right (135).
-                    -- Let's use the atan2 raw:
-                    local RawAngle = math.deg(math.atan2(Vec.X, -Vec.Y)) -- 0 is Up.
-                    -- RawAngle: -180 to 180.
-                    -- We want range -135 to 135.
+                    local RawAngle = math.deg(math.atan2(Vec.X, -Vec.Y)) -- Up is 0
                     local Clamped = math.clamp(RawAngle, -135, 135)
                     local Percent = (Clamped + 135) / 270
                     local NewVal = math.floor(Min + (Max - Min) * Percent)
                     Update(NewVal, true)
                 end
             end))
-            table.insert(Library.Connections, UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then Dragging = false end end))
+            
+            table.insert(Library.Connections, UserInputService.InputEnded:Connect(function(input) 
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then 
+                    Dragging = false; Utility:Tween(RingStroke, {Color = Theme.Stroke}) 
+                end 
+            end))
+            
             Library.Items[Flag] = { Set = function(self, v) Update(v, false) end }
             Update(Default, false)
         end
 
-        --// 🏷️ NEW: CHIP SET (TAGS)
         function Elements:ChipSet(options, callback)
             local Text, Flag = options.Name, options.Flag or options.Name
             local State = {} 
@@ -432,7 +444,6 @@ function Library:Window(options)
                     local Lbl = Utility:Create("TextLabel", {Parent=Chip, Text=tag, TextColor3=Theme.Text, Font=Theme.Font, TextSize=12, Size=UDim2.new(0,0,1,0), AutomaticSize=Enum.AutomaticSize.X, BackgroundTransparency=1}); Utility:Padding(Lbl, 8, 0)
                     local Btn = Utility:Create("TextButton", {Parent=Chip, Text="×", Font=Theme.FontBold, BackgroundTransparency=1, Size=UDim2.new(0,20,1,0), Position=UDim2.new(1,0,0,0), TextColor3=Theme.SubText})
                     Btn.MouseButton1Click:Connect(function() table.remove(State, i); Refresh(); pcall(callback, State) end)
-                    -- Expand chip to fit X button
                     Chip.ChildAdded:Connect(function(c) if c:IsA("TextLabel") then c:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() Chip.Size = UDim2.new(0, c.AbsoluteSize.X + 25, 0, 24) end) end end)
                     Chip.Size = UDim2.new(0, Lbl.AbsoluteSize.X + 25, 0, 24)
                 end
