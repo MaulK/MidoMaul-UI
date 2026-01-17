@@ -108,7 +108,7 @@ function Utility:MakeDrag(frame)
     end))
 end
 
---// 🛡️ ANTI-AFK (Fixed Method)
+--// 🛡️ ANTI-AFK (Fixed Method Location)
 function Library:InitAntiAFK()
     table.insert(Library.Connections, LocalPlayer.Idled:Connect(function()
         if Library.AntiAFK then
@@ -203,7 +203,7 @@ end))
 function Library:Window(options)
     local Title = options.Title or "MidoMaul"
     Library.ToggleKey = options.ToggleKey or Enum.KeyCode.RightControl
-    Library:InitAntiAFK() -- Fixed call
+    Library:InitAntiAFK() -- This call is now safe
     Library:SetWatermark(Title)
     
     local ScreenGui = CoreGui:FindFirstChild("MidoMaul_HUD")
@@ -245,11 +245,11 @@ function Library:Window(options)
         local TabBtn = Utility:Create("TextButton", { Parent = TabHolder, BackgroundTransparency = 1, Text = "", Size = UDim2.new(1, -20, 0, 34), Position = UDim2.new(0, 10, 0, 0), AutoButtonColor = false }); Utility:Corner(TabBtn)
         local TabTxt = Utility:Create("TextLabel", { Parent = TabBtn, Text = name, TextColor3 = Theme.SubText, Font = Theme.Font, TextSize = 14, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0), TextXAlignment = Enum.TextXAlignment.Left }); Utility:Padding(TabTxt, 10)
         
-        -- AutomaticCanvasSize Fix
+        -- AutomaticCanvasSize Logic
         local Page = Utility:Create("Frame", { Parent = PageHolder, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0), Visible = false })
         local Container = Utility:Create("ScrollingFrame", { Parent = Page, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0), Position=UDim2.new(0,0,0,0), ScrollBarThickness = 2, ScrollBarImageColor3 = Theme.Accent, CanvasSize = UDim2.new(0,0,0,0), AutomaticCanvasSize = Enum.AutomaticSize.Y, BorderSizePixel=0 }); Utility:Create("UIPadding", {Parent=Container, PaddingRight=UDim.new(0,10), PaddingBottom=UDim.new(0,20)})
         
-        -- Explicit Height Frame Fix
+        -- Explicit Column Widths
         local LeftCol = Utility:Create("Frame", {Parent=Container, BackgroundTransparency=1, Size=UDim2.new(0.48,0,0,0), AutomaticSize=Enum.AutomaticSize.Y}); Utility:Create("UIListLayout", {Parent=LeftCol, SortOrder=Enum.SortOrder.LayoutOrder, Padding=UDim.new(0,8)})
         local RightCol = Utility:Create("Frame", {Parent=Container, BackgroundTransparency=1, Size=UDim2.new(0.48,0,0,0), Position=UDim2.new(0.52,0,0,0), AutomaticSize=Enum.AutomaticSize.Y}); Utility:Create("UIListLayout", {Parent=RightCol, SortOrder=Enum.SortOrder.LayoutOrder, Padding=UDim.new(0,8)})
         
@@ -285,8 +285,8 @@ function Library:Window(options)
             local Tgl = Utility:Create("TextButton", { Parent = p, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 40), Text = "", AutoButtonColor = false }); Utility:Corner(Tgl); Utility:Stroke(Tgl, Theme.Stroke); Utility:AnimateHover(Tgl)
             local TglTxt = Utility:Create("TextLabel", { Parent = Tgl, Text = Text, TextColor3 = Theme.Text, Font = Theme.Font, TextSize = 13, Size = UDim2.new(1, -50, 1, 0), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left }); Utility:Padding(TglTxt, 12)
             
-            -- Proper Alignment
-            local Box = Utility:Create("Frame", { Parent = Tgl, BackgroundColor3 = Theme.Main, Size = UDim2.new(0, 36, 0, 20), AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0) }); Utility:Corner(Box, UDim.new(1,0)); local Stroke = Utility:Stroke(Box, Theme.Stroke)
+            -- Box Aligned to Right (-12px padding)
+            local Box = Utility:Create("Frame", { Parent = Tgl, BackgroundColor3 = Theme.Main, Size = UDim2.new(0, 36, 0, 20), AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0) }); Utility:Corner(Box, UDim.new(1,0)); local Stroke = Utility:Stroke(Box, Theme.Stroke)
             local Knob = Utility:Create("Frame", { Parent = Box, BackgroundColor3 = Theme.SubText, Size = UDim2.new(0, 16, 0, 16), Position = UDim2.new(0, 2, 0.5, -8) }); Utility:Corner(Knob, UDim.new(1,0))
             
             table.insert(Library.Searchable, {Object = Tgl, Text = Text})
@@ -299,9 +299,7 @@ function Library:Window(options)
             local Text, Flag, Min, Max, Default = options.Name, options.Flag or options.Name, options.Min or 0, options.Max or 100, options.Default or 0; Library.Flags[Flag] = Default
             local Sld = Utility:Create("Frame", { Parent = p, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 55) }); Utility:Corner(Sld); Utility:Stroke(Sld, Theme.Stroke)
             Utility:Create("TextLabel", { Parent = Sld, Text = Text, TextColor3 = Theme.Text, Font = Theme.Font, TextSize = 13, Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 12, 0, 0), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left })
-            
-            -- Value Label Aligned Right
-            local ValTxt = Utility:Create("TextLabel", { Parent = Sld, Text = tostring(Default), TextColor3 = Theme.Accent, Font = Theme.FontBold, TextSize = 13, Size = UDim2.new(0, 40, 0, 30), AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 0), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Right }); Utility:RegisterAccent(ValTxt, "TextColor3")
+            local ValTxt = Utility:Create("TextLabel", { Parent = Sld, Text = tostring(Default), TextColor3 = Theme.Accent, Font = Theme.FontBold, TextSize = 13, Size = UDim2.new(0, 40, 0, 30), AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 0), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Right }); Utility:RegisterAccent(ValTxt, "TextColor3")
             local Bar = Utility:Create("TextButton", { Parent = Sld, BackgroundColor3 = Theme.Main, Text = "", AutoButtonColor = false, Size = UDim2.new(1, -24, 0, 6), Position = UDim2.new(0, 12, 0, 36) }); Utility:Corner(Bar, UDim.new(1, 0))
             local Fill = Utility:Create("Frame", { Parent = Bar, BackgroundColor3 = Theme.Accent, Size = UDim2.new(0, 0, 1, 0) }); Utility:Corner(Fill, UDim.new(1, 0)); Utility:Gradient(Fill)
             table.insert(Library.Searchable, {Object = Sld, Text = Text})
@@ -333,8 +331,8 @@ function Library:Window(options)
             local Frame = Utility:Create("Frame", { Parent = p, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 40) }); Utility:Corner(Frame); Utility:Stroke(Frame, Theme.Stroke)
             local Lab = Utility:Create("TextLabel", { Parent = Frame, Text = Text, TextColor3 = Theme.Text, Font = Theme.Font, TextSize = 13, Size = UDim2.new(1, -80, 1, 0), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left }); Utility:Padding(Lab, 12)
             
-            -- FIX: Perfect Right Alignment (Same as Toggle)
-            local Btn = Utility:Create("TextButton", { Parent = Frame, BackgroundColor3 = Theme.Main, Size = UDim2.new(0, 80, 0, 20), AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Text = Default, TextColor3 = Theme.SubText, Font = Theme.FontBold, TextSize = 12 }); Utility:Corner(Btn, UDim.new(0,4)); local Stroke = Utility:Stroke(Btn, Theme.Stroke)
+            -- FIX: Button uses same right-alignment margin as Toggles (12px)
+            local Btn = Utility:Create("TextButton", { Parent = Frame, BackgroundColor3 = Theme.Main, Size = UDim2.new(0, 80, 0, 20), AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), Text = Default, TextColor3 = Theme.SubText, Font = Theme.FontBold, TextSize = 12 }); Utility:Corner(Btn, UDim.new(0,4)); local Stroke = Utility:Stroke(Btn, Theme.Stroke)
             
             local Binding = false
             Btn.MouseButton1Click:Connect(function() Binding = true; Btn.Text = "..."; Utility:Tween(Stroke, {Color = Theme.Accent}) end)
@@ -347,8 +345,8 @@ function Library:Window(options)
             local Frame = Utility:Create("Frame", { Parent = p, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 40), ClipsDescendants=true, ZIndex=5 }); Utility:Corner(Frame); Utility:Stroke(Frame, Theme.Stroke)
             local Lab = Utility:Create("TextLabel", { Parent = Frame, Text = Text, TextColor3 = Theme.Text, Font = Theme.Font, TextSize = 13, Size = UDim2.new(1, -50, 1, 0), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left }); Utility:Padding(Lab, 12)
             
-            -- Proper Alignment
-            local Preview = Utility:Create("TextButton", { Parent = Frame, BackgroundColor3 = Default, Size = UDim2.new(0, 30, 0, 20), AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Text = "" }); Utility:Corner(Preview, UDim.new(0,4)); Utility:Stroke(Preview, Theme.Stroke)
+            -- FIX: Preview box alignment matching Toggles (12px margin)
+            local Preview = Utility:Create("TextButton", { Parent = Frame, BackgroundColor3 = Default, Size = UDim2.new(0, 36, 0, 20), AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), Text = "" }); Utility:Corner(Preview, UDim.new(0,4)); Utility:Stroke(Preview, Theme.Stroke)
             
             table.insert(Library.Searchable, {Object = Frame, Text = Text})
             local Picker = Utility:Create("Frame", { Parent = Frame, BackgroundColor3 = Theme.Main, Size = UDim2.new(1, -24, 0, 110), Position = UDim2.new(0, 12, 0, 40), Visible = false }); Utility:Corner(Picker, UDim.new(0,4))
