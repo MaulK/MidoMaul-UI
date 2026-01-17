@@ -1,8 +1,9 @@
 --[[
-    MIDOMAUL // v8.6 APEX EDITION
-    - CRITICAL FIX: Resolved 'attempt to call missing method InitAntiAFK' crash.
-    - VISUAL FIX: Keybinds now perfectly align with Toggles on the right edge.
-    - LAYOUT FIX: Dual columns now render reliably without gaps.
+    MIDOMAUL // v8.2-STABLE (SINGLE COLUMN REVERT)
+    - Reverted to v8.2 Core
+    - REMOVED: Dual-Column Layout (Source of instability)
+    - FIXED: Layout rendering is now 100% reliable
+    - FIXED: Settings Tab alignment
 ]]
 
 local TweenService = game:GetService("TweenService")
@@ -12,7 +13,6 @@ local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 local Stats = game:GetService("Stats")
-local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
@@ -108,17 +108,16 @@ function Utility:MakeDrag(frame)
     end))
 end
 
---// 🛡️ ANTI-AFK (Fixed Method Location)
-function Library:InitAntiAFK()
+function Utility:InitAntiAFK()
     table.insert(Library.Connections, LocalPlayer.Idled:Connect(function()
         if Library.AntiAFK then
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.new())
+            game:GetService("VirtualUser"):CaptureController()
+            game:GetService("VirtualUser"):ClickButton2(Vector2.new())
         end
     end))
 end
 
-function Library:SetWatermark(text)
+function Utility:SetWatermark(text)
     local UI = CoreGui:FindFirstChild("MidoMaul_HUD")
     if not UI then
         UI = Utility:Create("ScreenGui", {Name = "MidoMaul_HUD", Parent = CoreGui, ZIndexBehavior = Enum.ZIndexBehavior.Sibling})
@@ -203,7 +202,7 @@ end))
 function Library:Window(options)
     local Title = options.Title or "MidoMaul"
     Library.ToggleKey = options.ToggleKey or Enum.KeyCode.RightControl
-    Library:InitAntiAFK() -- This call is now safe
+    Library:InitAntiAFK()
     Library:SetWatermark(Title)
     
     local ScreenGui = CoreGui:FindFirstChild("MidoMaul_HUD")
@@ -245,14 +244,13 @@ function Library:Window(options)
         local TabBtn = Utility:Create("TextButton", { Parent = TabHolder, BackgroundTransparency = 1, Text = "", Size = UDim2.new(1, -20, 0, 34), Position = UDim2.new(0, 10, 0, 0), AutoButtonColor = false }); Utility:Corner(TabBtn)
         local TabTxt = Utility:Create("TextLabel", { Parent = TabBtn, Text = name, TextColor3 = Theme.SubText, Font = Theme.Font, TextSize = 14, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0), TextXAlignment = Enum.TextXAlignment.Left }); Utility:Padding(TabTxt, 10)
         
-        -- AutomaticCanvasSize Logic
+        -- Single Column Layout (Stable)
         local Page = Utility:Create("Frame", { Parent = PageHolder, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0), Visible = false })
-        local Container = Utility:Create("ScrollingFrame", { Parent = Page, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0), Position=UDim2.new(0,0,0,0), ScrollBarThickness = 2, ScrollBarImageColor3 = Theme.Accent, CanvasSize = UDim2.new(0,0,0,0), AutomaticCanvasSize = Enum.AutomaticSize.Y, BorderSizePixel=0 }); Utility:Create("UIPadding", {Parent=Container, PaddingRight=UDim.new(0,10), PaddingBottom=UDim.new(0,20)})
+        local Container = Utility:Create("ScrollingFrame", { Parent = Page, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0), Position=UDim2.new(0,0,0,0), ScrollBarThickness = 2, ScrollBarImageColor3 = Theme.Accent, CanvasSize = UDim2.new(0,0,0,0), BorderSizePixel=0 }); Utility:Create("UIPadding", {Parent=Container, PaddingRight=UDim.new(0,10), PaddingBottom=UDim.new(0,20)})
+        local Layout = Utility:Create("UIListLayout", {Parent=Container, SortOrder=Enum.SortOrder.LayoutOrder, Padding=UDim.new(0,8)})
         
-        -- Explicit Column Widths
-        local LeftCol = Utility:Create("Frame", {Parent=Container, BackgroundTransparency=1, Size=UDim2.new(0.48,0,0,0), AutomaticSize=Enum.AutomaticSize.Y}); Utility:Create("UIListLayout", {Parent=LeftCol, SortOrder=Enum.SortOrder.LayoutOrder, Padding=UDim.new(0,8)})
-        local RightCol = Utility:Create("Frame", {Parent=Container, BackgroundTransparency=1, Size=UDim2.new(0.48,0,0,0), Position=UDim2.new(0.52,0,0,0), AutomaticSize=Enum.AutomaticSize.Y}); Utility:Create("UIListLayout", {Parent=RightCol, SortOrder=Enum.SortOrder.LayoutOrder, Padding=UDim.new(0,8)})
-        
+        Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() Container.CanvasSize = UDim2.new(0,0,0, Layout.AbsoluteContentSize.Y + 20) end)
+
         local function Activate()
             for _, v in pairs(TabHolder:GetChildren()) do if v:IsA("TextButton") then Utility:Tween(v, {BackgroundColor3 = Theme.Sidebar}); Utility:Tween(v.TextLabel, {TextColor3 = Theme.SubText}) end end
             for _, v in pairs(PageHolder:GetChildren()) do v.Visible = false end
@@ -262,42 +260,34 @@ function Library:Window(options)
 
         local Elements = {}
         
-        function Elements:Section(text, side) 
-            local p = (side == "Right") and RightCol or LeftCol
-            local Sec = Utility:Create("TextLabel", { Parent = p, Text = string.upper(text), TextColor3 = Theme.SubText, Font = Theme.FontBold, TextSize = 11, Size = UDim2.new(1, 0, 0, 24), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left }); Utility:Padding(Sec, 2) 
+        function Elements:Section(text) 
+            local Sec = Utility:Create("TextLabel", { Parent = Container, Text = string.upper(text), TextColor3 = Theme.SubText, Font = Theme.FontBold, TextSize = 11, Size = UDim2.new(1, 0, 0, 24), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left }); Utility:Padding(Sec, 2) 
         end
-        function Elements:Label(text, side) 
-            local p = (side == "Right") and RightCol or LeftCol
-            local Lab = Utility:Create("TextLabel", { Parent = p, Text = text, TextColor3 = Theme.Text, Font = Theme.Font, TextSize = 13, Size = UDim2.new(1, 0, 0, 24), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped=true }); Utility:Padding(Lab, 2) 
+        function Elements:Label(text) 
+            local Lab = Utility:Create("TextLabel", { Parent = Container, Text = text, TextColor3 = Theme.Text, Font = Theme.Font, TextSize = 13, Size = UDim2.new(1, 0, 0, 24), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped=true }); Utility:Padding(Lab, 2) 
         end
         
-        function Elements:Button(text, callback, side)
-            local p = (side == "Right") and RightCol or LeftCol
-            local Btn = Utility:Create("TextButton", { Parent = p, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 40), Text = "", AutoButtonColor = false }); Utility:Corner(Btn); Utility:Stroke(Btn, Theme.Stroke); Utility:AnimateHover(Btn)
+        function Elements:Button(text, callback)
+            local Btn = Utility:Create("TextButton", { Parent = Container, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 40), Text = "", AutoButtonColor = false }); Utility:Corner(Btn); Utility:Stroke(Btn, Theme.Stroke); Utility:AnimateHover(Btn)
             local BtnTxt = Utility:Create("TextLabel", { Parent = Btn, Text = text, TextColor3 = Theme.Text, Font = Theme.Font, TextSize = 13, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left }); Utility:Padding(BtnTxt, 12)
             table.insert(Library.Searchable, {Object = Btn, Text = text})
             Btn.MouseButton1Click:Connect(function() Utility:Tween(Btn, {BackgroundColor3 = Theme.Interact}, 0.1); task.wait(0.1); Utility:Tween(Btn, {BackgroundColor3 = Theme.Element}, 0.2); pcall(callback) end)
         end
         
-        function Elements:Toggle(options, callback, side)
-            local p = (side == "Right") and RightCol or LeftCol
+        function Elements:Toggle(options, callback)
             local Text, Flag, Default = options.Name, options.Flag or options.Name, options.Default or false; Library.Flags[Flag] = Default
-            local Tgl = Utility:Create("TextButton", { Parent = p, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 40), Text = "", AutoButtonColor = false }); Utility:Corner(Tgl); Utility:Stroke(Tgl, Theme.Stroke); Utility:AnimateHover(Tgl)
+            local Tgl = Utility:Create("TextButton", { Parent = Container, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 40), Text = "", AutoButtonColor = false }); Utility:Corner(Tgl); Utility:Stroke(Tgl, Theme.Stroke); Utility:AnimateHover(Tgl)
             local TglTxt = Utility:Create("TextLabel", { Parent = Tgl, Text = Text, TextColor3 = Theme.Text, Font = Theme.Font, TextSize = 13, Size = UDim2.new(1, -50, 1, 0), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left }); Utility:Padding(TglTxt, 12)
-            
-            -- Box Aligned to Right (-12px padding)
             local Box = Utility:Create("Frame", { Parent = Tgl, BackgroundColor3 = Theme.Main, Size = UDim2.new(0, 36, 0, 20), AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0) }); Utility:Corner(Box, UDim.new(1,0)); local Stroke = Utility:Stroke(Box, Theme.Stroke)
             local Knob = Utility:Create("Frame", { Parent = Box, BackgroundColor3 = Theme.SubText, Size = UDim2.new(0, 16, 0, 16), Position = UDim2.new(0, 2, 0.5, -8) }); Utility:Corner(Knob, UDim.new(1,0))
-            
             table.insert(Library.Searchable, {Object = Tgl, Text = Text})
             local function Update(val) Library.Flags[Flag] = val; Utility:Tween(Box, {BackgroundColor3 = val and Theme.Accent or Theme.Main}); Utility:Tween(Knob, {Position = val and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8), BackgroundColor3 = val and Theme.Text or Theme.SubText}, 0.2, Enum.EasingStyle.Back); pcall(callback, val) end
             Tgl.MouseButton1Click:Connect(function() Update(not Library.Flags[Flag]) end); Library.Items[Flag] = { Set = function(self, v) Update(v) end }; if Default then Update(true) end
         end
         
-        function Elements:Slider(options, callback, side)
-            local p = (side == "Right") and RightCol or LeftCol
+        function Elements:Slider(options, callback)
             local Text, Flag, Min, Max, Default = options.Name, options.Flag or options.Name, options.Min or 0, options.Max or 100, options.Default or 0; Library.Flags[Flag] = Default
-            local Sld = Utility:Create("Frame", { Parent = p, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 55) }); Utility:Corner(Sld); Utility:Stroke(Sld, Theme.Stroke)
+            local Sld = Utility:Create("Frame", { Parent = Container, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 55) }); Utility:Corner(Sld); Utility:Stroke(Sld, Theme.Stroke)
             Utility:Create("TextLabel", { Parent = Sld, Text = Text, TextColor3 = Theme.Text, Font = Theme.Font, TextSize = 13, Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 12, 0, 0), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left })
             local ValTxt = Utility:Create("TextLabel", { Parent = Sld, Text = tostring(Default), TextColor3 = Theme.Accent, Font = Theme.FontBold, TextSize = 13, Size = UDim2.new(0, 40, 0, 30), AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 0), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Right }); Utility:RegisterAccent(ValTxt, "TextColor3")
             local Bar = Utility:Create("TextButton", { Parent = Sld, BackgroundColor3 = Theme.Main, Text = "", AutoButtonColor = false, Size = UDim2.new(1, -24, 0, 6), Position = UDim2.new(0, 12, 0, 36) }); Utility:Corner(Bar, UDim.new(1, 0))
@@ -312,10 +302,9 @@ function Library:Window(options)
             Library.Items[Flag] = { Set = function(self, v) Update(v) end }; Update(Default)
         end
 
-        function Elements:TextField(options, callback, side)
-            local p = (side == "Right") and RightCol or LeftCol
+        function Elements:TextField(options, callback)
             local Text, Flag, Placeholder = options.Name, options.Flag or options.Name, options.Placeholder or "..."
-            local Frame = Utility:Create("Frame", { Parent = p, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 50) }); Utility:Corner(Frame); Utility:Stroke(Frame, Theme.Stroke)
+            local Frame = Utility:Create("Frame", { Parent = Container, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 50) }); Utility:Corner(Frame); Utility:Stroke(Frame, Theme.Stroke)
             local Lab = Utility:Create("TextLabel", { Parent = Frame, Text = Text, TextColor3 = Theme.Text, Font = Theme.Font, TextSize = 13, Size = UDim2.new(1, 0, 0, 24), Position = UDim2.new(0, 0, 0, 2), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left }); Utility:Padding(Lab, 12)
             local BoxHolder = Utility:Create("Frame", { Parent = Frame, BackgroundColor3 = Theme.Main, Size = UDim2.new(1, -24, 0, 20), Position = UDim2.new(0, 12, 0, 24) }); Utility:Corner(BoxHolder, UDim.new(0, 4)); local Stroke = Utility:Stroke(BoxHolder, Theme.Stroke)
             local Box = Utility:Create("TextBox", { Parent = BoxHolder, BackgroundTransparency = 1, Text = "", PlaceholderText = Placeholder, TextColor3 = Theme.Text, PlaceholderColor3 = Theme.SubText, Font = Theme.Font, TextSize = 12, Size = UDim2.new(1, 0, 1, 0), TextXAlignment = Enum.TextXAlignment.Left, ClearTextOnFocus = false }); Utility:Padding(Box, 6)
@@ -325,29 +314,21 @@ function Library:Window(options)
             Library.Items[Flag] = { Set = function(self, v) Box.Text = v; Library.Flags[Flag] = v; pcall(callback, v) end }
         end
         
-        function Elements:Keybind(options, callback, side)
-            local p = (side == "Right") and RightCol or LeftCol
+        function Elements:Keybind(options, callback)
             local Text, Flag, Default = options.Name, options.Flag or options.Name, options.Default or "None"; Library.Keys[Flag] = { Key = Default, Callback = function() pcall(callback) end }
-            local Frame = Utility:Create("Frame", { Parent = p, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 40) }); Utility:Corner(Frame); Utility:Stroke(Frame, Theme.Stroke)
+            local Frame = Utility:Create("Frame", { Parent = Container, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 40) }); Utility:Corner(Frame); Utility:Stroke(Frame, Theme.Stroke)
             local Lab = Utility:Create("TextLabel", { Parent = Frame, Text = Text, TextColor3 = Theme.Text, Font = Theme.Font, TextSize = 13, Size = UDim2.new(1, -80, 1, 0), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left }); Utility:Padding(Lab, 12)
-            
-            -- FIX: Button uses same right-alignment margin as Toggles (12px)
             local Btn = Utility:Create("TextButton", { Parent = Frame, BackgroundColor3 = Theme.Main, Size = UDim2.new(0, 80, 0, 20), AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), Text = Default, TextColor3 = Theme.SubText, Font = Theme.FontBold, TextSize = 12 }); Utility:Corner(Btn, UDim.new(0,4)); local Stroke = Utility:Stroke(Btn, Theme.Stroke)
-            
             local Binding = false
             Btn.MouseButton1Click:Connect(function() Binding = true; Btn.Text = "..."; Utility:Tween(Stroke, {Color = Theme.Accent}) end)
             table.insert(Library.Connections, UserInputService.InputBegan:Connect(function(i) if Binding and i.UserInputType == Enum.UserInputType.Keyboard then Binding = false; if options.IsToggleKey then Library.ToggleKey = i.KeyCode end; Library.Keys[Flag].Key = i.KeyCode.Name; Btn.Text = i.KeyCode.Name; Utility:Tween(Stroke, {Color = Theme.Stroke}) end end))
         end
 
-        function Elements:ColorPicker(options, callback, side)
-            local p = (side == "Right") and RightCol or LeftCol
+        function Elements:ColorPicker(options, callback)
             local Text, Flag, Default = options.Name, options.Flag or options.Name, options.Default or Color3.new(1,1,1); Library.Flags[Flag] = Default
-            local Frame = Utility:Create("Frame", { Parent = p, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 40), ClipsDescendants=true, ZIndex=5 }); Utility:Corner(Frame); Utility:Stroke(Frame, Theme.Stroke)
+            local Frame = Utility:Create("Frame", { Parent = Container, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 40), ClipsDescendants=true, ZIndex=5 }); Utility:Corner(Frame); Utility:Stroke(Frame, Theme.Stroke)
             local Lab = Utility:Create("TextLabel", { Parent = Frame, Text = Text, TextColor3 = Theme.Text, Font = Theme.Font, TextSize = 13, Size = UDim2.new(1, -50, 1, 0), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left }); Utility:Padding(Lab, 12)
-            
-            -- FIX: Preview box alignment matching Toggles (12px margin)
             local Preview = Utility:Create("TextButton", { Parent = Frame, BackgroundColor3 = Default, Size = UDim2.new(0, 36, 0, 20), AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), Text = "" }); Utility:Corner(Preview, UDim.new(0,4)); Utility:Stroke(Preview, Theme.Stroke)
-            
             table.insert(Library.Searchable, {Object = Frame, Text = Text})
             local Picker = Utility:Create("Frame", { Parent = Frame, BackgroundColor3 = Theme.Main, Size = UDim2.new(1, -24, 0, 110), Position = UDim2.new(0, 12, 0, 40), Visible = false }); Utility:Corner(Picker, UDim.new(0,4))
             local function CreateBox(pos, col, t) local b = Utility:Create("TextBox", { Parent = Picker, BackgroundColor3 = Theme.Element, Size = UDim2.new(0.3, 0, 0, 25), Position = pos, Text = t, TextColor3 = col, Font = Theme.FontBold, TextSize = 12 }); Utility:Corner(b, UDim.new(0,4)); return b end
@@ -357,21 +338,19 @@ function Library:Window(options)
             Apply.MouseButton1Click:Connect(function() local c = Color3.fromRGB(tonumber(R.Text) or 0, tonumber(G.Text) or 0, tonumber(B.Text) or 0); Preview.BackgroundColor3 = c; Library.Flags[Flag] = c; pcall(callback, c); Library:Notify("Color", "Updated", 1); Open=false; Picker.Visible=false; Frame:TweenSize(UDim2.new(1,0,0,40),"Out","Quart",0.3,true) end)
             Preview.MouseButton1Click:Connect(function() Open = not Open; Picker.Visible = Open; Frame:TweenSize(Open and UDim2.new(1, 0, 0, 160) or UDim2.new(1, 0, 0, 40), "Out", "Quart", 0.3, true) end)
         end
-        function Elements:ProgressBar(options, side)
-             local p = (side == "Right") and RightCol or LeftCol
+        function Elements:ProgressBar(options)
              local Text, Min, Max, Current = options.Name, options.Min or 0, options.Max or 100, options.Default or 0
-             local PFrame = Utility:Create("Frame", { Parent = p, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 40) }); Utility:Corner(PFrame); Utility:Stroke(PFrame, Theme.Stroke)
+             local PFrame = Utility:Create("Frame", { Parent = Container, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 40) }); Utility:Corner(PFrame); Utility:Stroke(PFrame, Theme.Stroke)
              local PLabel = Utility:Create("TextLabel", { Parent = PFrame, Text = Text, TextColor3 = Theme.Text, Font = Theme.Font, TextSize = 12, Size = UDim2.new(1, 0, 0, 16), Position = UDim2.new(0, 0, 0, 2), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left }); Utility:Padding(PLabel, 12)
              local PBarBack = Utility:Create("Frame", { Parent = PFrame, BackgroundColor3 = Theme.Main, Size = UDim2.new(1, -24, 0, 10), Position = UDim2.new(0, 12, 0, 22) }); Utility:Corner(PBarBack, UDim.new(1,0))
              local PFill = Utility:Create("Frame", { Parent = PBarBack, BackgroundColor3 = Theme.Success, Size = UDim2.new(0,0,1,0) }); Utility:Corner(PFill, UDim.new(1,0))
              local Obj = {}; function Obj:Set(val) val = math.clamp(val, Min, Max); local percent = (val - Min) / (Max - Min); Utility:Tween(PFill, {Size = UDim2.new(percent, 0, 1, 0)}); PLabel.Text = Text .. " [" .. math.floor(val) .. "/" .. Max .. "]" end
              Obj:Set(Current); return Obj
         end
-        function Elements:Dropdown(options, callback, side)
-            local p = (side == "Right") and RightCol or LeftCol
+        function Elements:Dropdown(options, callback)
             local Text, Flag, List, Default, Multi = options.Name, options.Flag or options.Name, options.List or {}, options.Default, options.Multi; local State = Multi and {} or Default or List[1]
             if Multi then for _, v in pairs(List) do State[v] = false end if type(Default)=="table" then for _,v in pairs(Default) do State[v]=true end end end; Library.Flags[Flag] = State
-            local DropFrame = Utility:Create("Frame", { Parent = p, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 40), ClipsDescendants = true, ZIndex = 3 }); Utility:Corner(DropFrame); Utility:Stroke(DropFrame, Theme.Stroke)
+            local DropFrame = Utility:Create("Frame", { Parent = Container, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 40), ClipsDescendants = true, ZIndex = 3 }); Utility:Corner(DropFrame); Utility:Stroke(DropFrame, Theme.Stroke)
             local Button = Utility:Create("TextButton", { Parent = DropFrame, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 40), Text = "", AutoButtonColor = false, ZIndex = 3 })
             local Label = Utility:Create("TextLabel", { Parent = Button, Text = Text, TextColor3 = Theme.Text, Font = Theme.Font, TextSize = 13, Size = UDim2.new(1, -40, 0, 40), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 3 }); Utility:Padding(Label, 12)
             local Arrow = Utility:Create("ImageLabel", { Parent = Button, BackgroundTransparency = 1, Image = "rbxassetid://6031090990", Size = UDim2.new(0, 18, 0, 18), Position = UDim2.new(1, -28, 0.5, -9), ZIndex = 3 })
@@ -390,17 +369,16 @@ function Library:Window(options)
             Library.Items[Flag] = { Set = function(self, val) State = val; Library.Flags[Flag] = State; Refresh(); pcall(callback, State) end }
         end
         function Elements:ConfigSystem()
-            Elements:Section("Configuration", "Left")
+            Elements:Section("Configuration")
             local Name = ""
-            Elements:TextField({Name="Config Name", Flag="ConfigName", Placeholder="Config Name..."}, function(v) Name = v end, "Left")
-            local Grp = Utility:Create("Frame", {Parent=LeftCol, BackgroundTransparency=1, Size=UDim2.new(1,0,0,36)}); local Layout = Utility:Create("UIListLayout", {Parent=Grp, FillDirection=Enum.FillDirection.Horizontal, Padding=UDim.new(0,5)})
+            Elements:TextField({Name="Config Name", Flag="ConfigName", Placeholder="Config Name..."}, function(v) Name = v end)
+            local Grp = Utility:Create("Frame", {Parent=Container, BackgroundTransparency=1, Size=UDim2.new(1,0,0,36)}); local Layout = Utility:Create("UIListLayout", {Parent=Grp, FillDirection=Enum.FillDirection.Horizontal, Padding=UDim.new(0,5)})
             local function Btn(t, f) local b = Utility:Create("TextButton", {Parent=Grp, BackgroundColor3=Theme.Element, Size=UDim2.new(0.32,0,1,0), Text=t, TextColor3=Theme.Text, Font=Theme.Font}); Utility:Corner(b); Utility:Stroke(b, Theme.Stroke); b.MouseButton1Click:Connect(f) end
             Btn("Save", function() Library:SaveConfig(Name) end); Btn("Load", function() Library:LoadConfig(Name) end); Btn("List", function() Library:Notify("Configs", table.concat(Library:GetConfigs(), ", ")) end)
         end
-        function Elements:ButtonGroup(options, side)
+        function Elements:ButtonGroup(options) 
              local List, Call = options.Names or {}, options.Callback or function() end
-             local p = (side == "Right") and RightCol or LeftCol
-             local Grp = Utility:Create("Frame", {Parent=p, BackgroundTransparency=1, Size=UDim2.new(1,0,0,36)}); local Layout = Utility:Create("UIListLayout", {Parent=Grp, FillDirection=Enum.FillDirection.Horizontal, Padding=UDim.new(0,5)})
+             local Grp = Utility:Create("Frame", {Parent=Container, BackgroundTransparency=1, Size=UDim2.new(1,0,0,36)}); local Layout = Utility:Create("UIListLayout", {Parent=Grp, FillDirection=Enum.FillDirection.Horizontal, Padding=UDim.new(0,5)})
              local SizePercent = 1 / #List
              for _, name in pairs(List) do
                  local Btn = Utility:Create("TextButton", { Parent = Grp, BackgroundColor3 = Theme.Element, Size = UDim2.new(SizePercent, -5, 1, 0), Text = name, TextColor3 = Theme.Text, Font = Theme.Font, TextSize = 13, AutoButtonColor = false }); Utility:Corner(Btn); Utility:Stroke(Btn, Theme.Stroke); Btn.MouseButton1Click:Connect(function() pcall(Call, name) end)
@@ -411,15 +389,15 @@ function Library:Window(options)
     end
     
     local SetTab = WindowAPI:Tab("Settings")
-    SetTab:Section("Theme", "Left")
-    SetTab:ColorPicker({Name = "UI Accent Color", Flag = "UI_Color", Default = Theme.Accent}, function(c) Library:SetAccent(c) end, "Left")
-    SetTab:Section("Security", "Right")
-    SetTab:Toggle({Name = "Anti-AFK", Flag = "AntiAFK", Default = false}, function(v) Library.AntiAFK = v end, "Right")
-    SetTab:Section("Keybinds", "Right")
-    SetTab:Keybind({Name = "Menu Toggle", Flag = "MenuBind", Default = "RightControl", IsToggleKey = true}, function() end, "Right")
+    SetTab:Section("Theme")
+    SetTab:ColorPicker({Name = "UI Accent Color", Flag = "UI_Color", Default = Theme.Accent}, function(c) Library:SetAccent(c) end)
+    SetTab:Section("Security")
+    SetTab:Toggle({Name = "Anti-AFK", Flag = "AntiAFK", Default = false}, function(v) Library.AntiAFK = v end)
+    SetTab:Section("Keybinds")
+    SetTab:Keybind({Name = "Menu Toggle", Flag = "MenuBind", Default = "RightControl", IsToggleKey = true}, function() end)
     SetTab:ConfigSystem()
-    SetTab:Section("Exit", "Right")
-    SetTab:Button("Unload UI", function() Library:Unload() end, "Right")
+    SetTab:Section("Exit")
+    SetTab:Button("Unload UI", function() Library:Unload() end)
     
     return WindowAPI
 end
