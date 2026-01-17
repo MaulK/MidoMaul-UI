@@ -1,15 +1,15 @@
 --[[
-    MIDOMAUL // v8.4 STABILITY PATCH
-    - Fixed: Blank UI bug (CanvasSize race condition)
-    - Fixed: Layout engine not updating height correctly
-    - Fixed: Auto-Settings tab loading failure
+    MIDOMAUL // v8.5 TITAN ARCHITECT
+    - Fixed: "Empty Tab" bug caused by hidden layout calculation (Switched to AutomaticCanvasSize)
+    - Fixed: Right Column collapsing
+    - Fixed: Keybind alignment consistency
+    - Improved: Element Rendering Pipeline
 ]]
 
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
-local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 local Stats = game:GetService("Stats")
 
@@ -34,7 +34,11 @@ local Theme = {
 }
 
 --// 🛠️ UTILITY
-local Library = { Flags = {}, Items = {}, Accents = {}, Connections = {}, ToggleKey = Enum.KeyCode.RightControl, ConfigFolder = "MidoMaulConfigs", Keys = {}, IsOpen = true, Searchable = {}, AntiAFK = false }
+local Library = { 
+    Flags = {}, Items = {}, Accents = {}, Connections = {}, 
+    ToggleKey = Enum.KeyCode.RightControl, ConfigFolder = "MidoMaulConfigs", 
+    Keys = {}, IsOpen = true, Searchable = {}, AntiAFK = false 
+}
 local Utility = {}
 
 local function SafeWrite(file, data) if writefile then writefile(file, data) end end
@@ -72,7 +76,10 @@ end
 function Utility:Gradient(parent)
     local g = Instance.new("UIGradient")
     g.Parent = parent
-    g.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Theme.Accent), ColorSequenceKeypoint.new(1, Theme.Accent2)}
+    g.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Theme.Accent),
+        ColorSequenceKeypoint.new(1, Theme.Accent2)
+    }
     g.Rotation = 45
     table.insert(Library.Accents, {Object = g, Type = "Gradient"})
     return g
@@ -100,7 +107,7 @@ function Utility:MakeDrag(frame)
     end))
 end
 
-function Library:InitAntiAFK()
+function Utility:InitAntiAFK()
     table.insert(Library.Connections, LocalPlayer.Idled:Connect(function()
         if Library.AntiAFK then
             game:GetService("VirtualUser"):CaptureController()
@@ -109,7 +116,7 @@ function Library:InitAntiAFK()
     end))
 end
 
-function Library:SetWatermark(text)
+function Utility:SetWatermark(text)
     local UI = CoreGui:FindFirstChild("MidoMaul_HUD")
     if not UI then
         UI = Utility:Create("ScreenGui", {Name = "MidoMaul_HUD", Parent = CoreGui, ZIndexBehavior = Enum.ZIndexBehavior.Sibling})
@@ -236,24 +243,19 @@ function Library:Window(options)
         local TabBtn = Utility:Create("TextButton", { Parent = TabHolder, BackgroundTransparency = 1, Text = "", Size = UDim2.new(1, -20, 0, 34), Position = UDim2.new(0, 10, 0, 0), AutoButtonColor = false }); Utility:Corner(TabBtn)
         local TabTxt = Utility:Create("TextLabel", { Parent = TabBtn, Text = name, TextColor3 = Theme.SubText, Font = Theme.Font, TextSize = 14, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0), TextXAlignment = Enum.TextXAlignment.Left }); Utility:Padding(TabTxt, 10)
         
+        -- [[ ARCHITECTURAL FIX: Use AutomaticCanvasSize ]]
         local Page = Utility:Create("Frame", { Parent = PageHolder, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0), Visible = false })
-        local Container = Utility:Create("ScrollingFrame", { Parent = Page, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0), Position=UDim2.new(0,0,0,0), ScrollBarThickness = 2, ScrollBarImageColor3 = Theme.Accent, CanvasSize = UDim2.new(0,0,0,0), BorderSizePixel=0 }); Utility:Create("UIPadding", {Parent=Container, PaddingRight=UDim.new(0,10), PaddingBottom=UDim.new(0,20)})
+        local Container = Utility:Create("ScrollingFrame", { 
+            Parent = Page, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0), Position=UDim2.new(0,0,0,0), 
+            ScrollBarThickness = 2, ScrollBarImageColor3 = Theme.Accent, 
+            CanvasSize = UDim2.new(0,0,0,0), AutomaticCanvasSize = Enum.AutomaticSize.Y, -- NATIVE FIX
+            BorderSizePixel=0 
+        }); Utility:Create("UIPadding", {Parent=Container, PaddingRight=UDim.new(0,10), PaddingBottom=UDim.new(0,20)})
         
-        -- DUAL COLUMN LAYOUT FIX
-        local LeftCol = Utility:Create("Frame", {Parent=Container, BackgroundTransparency=1, Size=UDim2.new(0.48,0,1,0), AutomaticSize=Enum.AutomaticSize.Y}); Utility:Create("UIListLayout", {Parent=LeftCol, SortOrder=Enum.SortOrder.LayoutOrder, Padding=UDim.new(0,8)})
-        local RightCol = Utility:Create("Frame", {Parent=Container, BackgroundTransparency=1, Size=UDim2.new(0.48,0,1,0), Position=UDim2.new(0.52,0,0,0), AutomaticSize=Enum.AutomaticSize.Y}); Utility:Create("UIListLayout", {Parent=RightCol, SortOrder=Enum.SortOrder.LayoutOrder, Padding=UDim.new(0,8)})
+        -- DUAL COLUMN - Using Scale 0.49 to fill more space but keep gap
+        local LeftCol = Utility:Create("Frame", {Parent=Container, BackgroundTransparency=1, Size=UDim2.new(0.49,0,0,0), AutomaticSize=Enum.AutomaticSize.Y}); Utility:Create("UIListLayout", {Parent=LeftCol, SortOrder=Enum.SortOrder.LayoutOrder, Padding=UDim.new(0,8)})
+        local RightCol = Utility:Create("Frame", {Parent=Container, BackgroundTransparency=1, Size=UDim2.new(0.49,0,0,0), Position=UDim2.new(0.51,0,0,0), AutomaticSize=Enum.AutomaticSize.Y}); Utility:Create("UIListLayout", {Parent=RightCol, SortOrder=Enum.SortOrder.LayoutOrder, Padding=UDim.new(0,8)})
         
-        -- RESIZE LOGIC FIX (Important!)
-        local function Resize() 
-            local h = math.max(LeftCol.UIListLayout.AbsoluteContentSize.Y, RightCol.UIListLayout.AbsoluteContentSize.Y)
-            Container.CanvasSize = UDim2.new(0,0,0, h + 40) 
-        end
-        LeftCol.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(Resize)
-        RightCol.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(Resize)
-        
-        -- INITIAL RESIZE TRIGGER
-        task.delay(0.1, Resize) -- Force layout update after load
-
         local function Activate()
             for _, v in pairs(TabHolder:GetChildren()) do if v:IsA("TextButton") then Utility:Tween(v, {BackgroundColor3 = Theme.Sidebar}); Utility:Tween(v.TextLabel, {TextColor3 = Theme.SubText}) end end
             for _, v in pairs(PageHolder:GetChildren()) do v.Visible = false end
@@ -263,7 +265,6 @@ function Library:Window(options)
 
         local Elements = {}
         
-        -- COMPONENTS (Layout Safe)
         function Elements:Section(text, side) 
             local p = (side == "Right") and RightCol or LeftCol
             local Sec = Utility:Create("TextLabel", { Parent = p, Text = string.upper(text), TextColor3 = Theme.SubText, Font = Theme.FontBold, TextSize = 11, Size = UDim2.new(1, 0, 0, 24), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left }); Utility:Padding(Sec, 2) 
@@ -275,7 +276,7 @@ function Library:Window(options)
         
         function Elements:Button(text, callback, side)
             local p = (side == "Right") and RightCol or LeftCol
-            local Btn = Utility:Create("TextButton", { Parent = p, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 40), Text = "", AutoButtonColor = false }); Utility:Corner(Btn); Utility:Stroke(Btn, Theme.Stroke)
+            local Btn = Utility:Create("TextButton", { Parent = p, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 40), Text = "", AutoButtonColor = false }); Utility:Corner(Btn); Utility:Stroke(Btn, Theme.Stroke); Utility:AnimateHover(Btn)
             local BtnTxt = Utility:Create("TextLabel", { Parent = Btn, Text = text, TextColor3 = Theme.Text, Font = Theme.Font, TextSize = 13, Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left }); Utility:Padding(BtnTxt, 12)
             table.insert(Library.Searchable, {Object = Btn, Text = text})
             Btn.MouseButton1Click:Connect(function() Utility:Tween(Btn, {BackgroundColor3 = Theme.Interact}, 0.1); task.wait(0.1); Utility:Tween(Btn, {BackgroundColor3 = Theme.Element}, 0.2); pcall(callback) end)
@@ -284,7 +285,7 @@ function Library:Window(options)
         function Elements:Toggle(options, callback, side)
             local p = (side == "Right") and RightCol or LeftCol
             local Text, Flag, Default = options.Name, options.Flag or options.Name, options.Default or false; Library.Flags[Flag] = Default
-            local Tgl = Utility:Create("TextButton", { Parent = p, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 40), Text = "", AutoButtonColor = false }); Utility:Corner(Tgl); Utility:Stroke(Tgl, Theme.Stroke)
+            local Tgl = Utility:Create("TextButton", { Parent = p, BackgroundColor3 = Theme.Element, Size = UDim2.new(1, 0, 0, 40), Text = "", AutoButtonColor = false }); Utility:Corner(Tgl); Utility:Stroke(Tgl, Theme.Stroke); Utility:AnimateHover(Tgl)
             local TglTxt = Utility:Create("TextLabel", { Parent = Tgl, Text = Text, TextColor3 = Theme.Text, Font = Theme.Font, TextSize = 13, Size = UDim2.new(1, -50, 1, 0), BackgroundTransparency = 1, TextXAlignment = Enum.TextXAlignment.Left }); Utility:Padding(TglTxt, 12)
             local Box = Utility:Create("Frame", { Parent = Tgl, BackgroundColor3 = Theme.Main, Size = UDim2.new(0, 36, 0, 20), AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0) }); Utility:Corner(Box, UDim.new(1,0)); local Stroke = Utility:Stroke(Box, Theme.Stroke)
             local Knob = Utility:Create("Frame", { Parent = Box, BackgroundColor3 = Theme.SubText, Size = UDim2.new(0, 16, 0, 16), Position = UDim2.new(0, 2, 0.5, -8) }); Utility:Corner(Knob, UDim.new(1,0))
